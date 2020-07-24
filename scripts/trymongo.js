@@ -1,22 +1,21 @@
 require('dotenv').config();
 const { MongoClient } = require('mongodb');
 
-const url = process.env.DB_URL || 'mongodb://localhost/issuetracker';
+const url = process.env.DB_URL || 'mongodb://localhost:27017/issuetracker';
 
 function testWithCallbacks(callback) {
   console.log('\n--- testWithCallbacks ---');
   const client = new MongoClient(url, { useNewUrlParser: true });
-  client.connect((connErr) => {
-    if (connErr) {
-      callback(connErr);
+
+  client.connect((conErr) => {
+    if (conErr) {
+      callback(conErr);
       return;
     }
     console.log('Connected to MongoDB URL', url);
-
     const db = client.db();
     const collection = db.collection('employees');
-
-    const employee = { id: 1, name: 'A. Callback', age: 23 };
+    const employee = { id: 1.0, name: 'A. Callback', age: 55 };
     collection.insertOne(employee, (insertErr, result) => {
       if (insertErr) {
         client.close();
@@ -24,6 +23,7 @@ function testWithCallbacks(callback) {
         return;
       }
       console.log('Result of insert:\n', result.insertedId);
+
       collection.find({ _id: result.insertedId })
         .toArray((findErr, docs) => {
           if (findErr) {
@@ -40,7 +40,7 @@ function testWithCallbacks(callback) {
 }
 
 async function testWithAsync() {
-  console.log('\n--- testWithAsync ---');
+  console.log('\n-- testWithAsync ---');
   const client = new MongoClient(url, { useNewUrlParser: true });
   try {
     await client.connect();
@@ -51,7 +51,6 @@ async function testWithAsync() {
     const employee = { id: 2, name: 'B. Async', age: 16 };
     const result = await collection.insertOne(employee);
     console.log('Result of insert:\n', result.insertedId);
-
     const docs = await collection.find({ _id: result.insertedId })
       .toArray();
     console.log('Result of find:\n', docs);
