@@ -2,6 +2,12 @@ const { UserInputError } = require('apollo-server-express');
 const { getDb, getNextSequence } = require('./db.js');
 const { mustBeSignedIn } = require('./auth.js');
 
+async function get(_, { id }) {
+  const db = getDb();
+  const issue = await db.collection('issues').findOne({ id });
+  return issue;
+}
+
 const PAGE_SIZE = 10;
 
 async function list(_, {
@@ -9,17 +15,22 @@ async function list(_, {
 }) {
   const db = getDb();
   const filter = {};
+
   if (status) filter.status = status;
+
   if (effortMin !== undefined || effortMax !== undefined) {
     filter.effort = {};
     if (effortMin !== undefined) filter.effort.$gte = effortMin;
     if (effortMax !== undefined) filter.effort.$lte = effortMax;
   }
+
   if (search) filter.$text = { $search: search };
+
   const cursor = db.collection('issues').find(filter)
     .sort({ id: 1 })
     .skip(PAGE_SIZE * (page - 1))
     .limit(PAGE_SIZE);
+
   const totalCount = await cursor.count(false);
   const issues = cursor.toArray();
   const pages = Math.ceil(totalCount / PAGE_SIZE);
@@ -32,7 +43,7 @@ function validate(issue) {
     errors.push('Field "title" must be at least 3 characters long.');
   }
   if (issue.status === 'Assigned' && !issue.owner) {
-    errors.push('Field "Owner" is required when status is "Assigned');
+    errors.push('Field "owner" is required when status is "Assigned"');
   }
   if (errors.length > 0) {
     throw new UserInputError('Invalid input(s)', { errors });
@@ -42,22 +53,15 @@ function validate(issue) {
 async function add(_, { issue }) {
   const db = getDb();
   validate(issue);
+
   const newIssue = Object.assign({}, issue);
   newIssue.created = new Date();
   newIssue.id = await getNextSequence('issues');
 
   const result = await db.collection('issues').insertOne(newIssue);
-
   const savedIssue = await db.collection('issues')
     .findOne({ _id: result.insertedId });
-
   return savedIssue;
-}
-
-async function get(_, { id }) {
-  const db = getDb();
-  const issue = await db.collection('issues').findOne({ id });
-  return issue;
 }
 
 async function update(_, { id, changes }) {
